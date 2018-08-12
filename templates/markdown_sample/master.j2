@@ -1,0 +1,78 @@
+# Ansible Documentation
+
+{% for play in plays %}
+## {{ play.name }}
+
+{% if play.roles and play.roles|length > 0 %}
+This play contains the following roles:
+
+{% for role in play.roles %}
+- {{ role }}
+{% endfor %}
+{% endif %}
+
+This play runs on the following hosts:
+
+{% for host in play.hosts %}
+- {{ host.name }}
+{% endfor %}
+
+{% for task in play.tasks %}
+{% if loop.first or (loop.previtem is defined and task.role != loop.previtem.role) %}
+### {{ 'Role: %s'%task.role if task.role else 'Playbook' }}
+{% endif %}
+
+#### {{ task.name }} (_{{ task.action }}_)
+
+{% if task.has_loop %}
+{%   set loop_var = task.loop|default(task.loop_with, true) %}
+{%   if loop_var is string and "{{ " in loop_var %}
+> **NOTE:** This task will loop over the `{{ loop_var|replace('{{ ','')|replace(' }}','') }}` variable.
+{%   else %}
+> **NOTE:** This task will loop over the defined list or dictionary.
+{%   endif %}
+{% endif %}
+
+{% include ['modules/%s.j2'%task.action, 'modules/_not_implemented.j2'] %}
+
+{% if task.register %}
+**Register**
+
+Task output will be saved to `{{ task.register }}` register.
+{% endif %}
+
+{% if task.when %}
+**Condition**
+
+This task will only run when `{{ task.when|join(", ") }}`.
+{% endif %}
+
+{% if task.notify %}
+**Notification**
+
+This task will notify the following handler(s):
+
+- {{ task.notify }}
+{% endif %}
+
+{% if options.showdetails %}
+**Details**
+
+```json
+{{ task.ds|tojson(indent=2) }}
+```
+{% endif %}
+
+{% endfor %}
+
+### Handlers
+
+{% for task in play.handlers %}
+#### {{ task.name }}
+
+{% include ['modules/%s.j2'%task.action, 'modules/_not_implemented.j2'] %}
+
+{% else %}
+No handlers defined for this play.
+{% endfor %}
+{% endfor %}

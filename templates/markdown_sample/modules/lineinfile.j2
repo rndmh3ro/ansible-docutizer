@@ -1,0 +1,40 @@
+{% if task.args.create and not task.args.regexp is defined %}
+Add the following line to `{{ task.args.dest|default(task.args.path) }}`:
+
+```
+{{ task.args.line }}
+```
+{% else %}
+Update the following file `{{ task.args.dest|default(task.args.path) }}`:
+
+| Regexp                   | Replace                |
+| ------                   | -------                |
+| `{{ task.args.regexp }}` | `{{ task.args.line }}` |
+
+{% if task.loop_eval and task.loop_eval|length > 0 %}
+After applying the loop variable:
+
+| Regexp                   | Replace                |
+| ------                   | -------                |
+{%   for t in task.loop_eval %}
+| `{{ t.args.regexp }}` | `{{ t.args.line }}` |
+{%   endfor %}
+{% endif %}
+
+{% if task.eval %}
+After applying the vars:
+
+| Regexp                   | Replace                |
+| ------                   | -------                |
+| `{{ task.eval.args.regexp }}` | `{{ task.eval.args.line }}` |
+{% endif %}
+
+{% if task.args.validate %}
+The file will be validated with the following command:
+
+```
+{{ task.args.validate|replace('%s', task.args.dest|default(task.args.path)) }}
+```
+{% endif %}
+{% endif %}
+

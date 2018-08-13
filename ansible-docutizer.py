@@ -13,12 +13,12 @@ from ansible.errors import AnsibleError, AnsibleOptionsError, AnsibleUndefinedVa
 from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible.playbook.block import Block
 from ansible.playbook.play_context import PlayContext
-from ansible.module_utils._text import to_bytes, to_text
+from ansible.module_utils._text import to_text
 from ansible.template import Templar, AnsibleEnvironment
 from ansible.utils.listify import listify_lookup_plugin_terms
 from ansible.plugins.loader import action_loader, connection_loader, filter_loader, lookup_loader, module_loader, test_loader
 from jinja2 import FileSystemLoader
-from jinja2.exceptions import TemplateNotFound, TemplateError
+from jinja2.exceptions import TemplateError
 
 
 try:
@@ -87,14 +87,13 @@ class PlaybookDocutizer(CLI):
         if self.options.showdetails:
             display.warning('--showdetails option may expose passwords and other secure data!')
 
-
     def run(self):
         super(PlaybookDocutizer, self).run()
 
         for playbook in self.args:
             if not os.path.exists(playbook):
                 raise AnsibleError("the playbook: %s could not be found" % playbook)
-            if not (os.path.isfile(playbook) or stat.S_ISFIFO(os.stat(playbook).st_mode)):
+            if not (os.path.isfile(playbook)):
                 raise AnsibleError("the playbook: %s does not appear to be a file" % playbook)
 
         self._shared_loader_obj = SharedPluginLoaderObj()
@@ -108,7 +107,7 @@ class PlaybookDocutizer(CLI):
             for p in results:
                 plays = []
                 for idx, play in enumerate(p['plays']):
-                    display.display('Processing play %d: %s'%(idx+1, play.name))
+                    display.display('Processing play %d: %s' % (idx+1, play.name))
 
                     if play._included_path is not None:
                         self._loader.set_basedir(play._included_path)
@@ -117,9 +116,11 @@ class PlaybookDocutizer(CLI):
                         self._loader.set_basedir(pb_dir)
 
                     hosts = CLI.get_host_list(self._inventory, self.options.subset)
+                    if len(hosts) == 0:
+                        raise AnsibleError('No hosts were specified')
 
                     host = hosts[0]
-                    display.v('Processing against host: %s'%(host.get_name()))
+                    display.v('Processing against host: %s' % (host.get_name()))
 
                     self._all_vars = self._variable_manager.get_vars(play=play, host=host)
                     play_context = PlayContext(play=play, options=self.options)
@@ -143,15 +144,14 @@ class PlaybookDocutizer(CLI):
                         processed_handlers.extend(self._process_block(block))
 
                     play_info = {
-                        'filename':p['playbook'],
-                        'roles':play.roles,
-                        'hosts':hosts,
-                        'name':play.name,
-                        'roles':play.roles,
-                        'tasks':tasks,
-                        'handlers':processed_handlers,
-                        'become':play.become,
-                        'remote_user':play.remote_user,
+                        'filename': p['playbook'],
+                        'hosts': hosts,
+                        'name': play.name,
+                        'roles': play.roles,
+                        'tasks': tasks,
+                        'handlers': processed_handlers,
+                        'become': play.become,
+                        'remote_user': play.remote_user,
                     }
 
                     plays.append(play_info)
@@ -160,15 +160,14 @@ class PlaybookDocutizer(CLI):
                                          extensions=['jinja2.ext.loopcontrols'],
                                          loader=FileSystemLoader(self.options.template_path))
 
-                display.display('Rendering template containing %d plays'%(len(plays)))
+                display.display('Rendering template containing %d plays' % (len(plays)))
                 template = env.get_template(self.options.template_master)
                 output = template.render(plays=plays,
                                          options=self.options)
 
-                display.display('Saving output to %s'%(self.options.output))
+                display.display('Saving output to %s' % (self.options.output))
                 with codecs.open(self.options.output, mode='w', encoding='utf-8') as f:
                     f.write(output)
-
 
     def _process_block(self, b):
         results = []
@@ -181,19 +180,16 @@ class PlaybookDocutizer(CLI):
                 results.append(self._process_task(task))
         return results
 
-
     def _process_task(self, t):
         task_data = self._task_data_for_template(t)
         task_data['eval'] = self._post_validate_task(t)
         task_data['loop_eval'] = self._process_task_loops(t)
         return task_data
 
-
     def _post_validate_task(self, task):
         if task.loop_with or task.loop:
             return None
 
-        task_vars = self._variable_manager.get_vars(task=task)
         templar = Templar(loader=self._loader, shared_loader_obj=self._shared_loader_obj, variables=self._all_vars)
         try:
             tmp_task = task.copy(exclude_parent=True, exclude_tasks=True)
@@ -207,7 +203,6 @@ class PlaybookDocutizer(CLI):
             return None
 
         return self._task_data_for_template(tmp_task)
-
 
     def _process_task_loops(self, task):
         results = []
@@ -225,11 +220,10 @@ class PlaybookDocutizer(CLI):
                         tmp_task.post_validate(templar=templar)
                         results.append(self._task_data_for_template(tmp_task))
                         del task_vars['item']
-                    except AnsibleParserError as e:
-                        display.warning('%s caused an AnsibleParseError; ignoring'%(tmp_task))
+                    except AnsibleParserError:
+                        display.warning('%s caused an AnsibleParseError; ignoring' % (tmp_task))
                         results.clear()
         return results
-
 
     def _get_loop_items(self, task, templar, task_vars):
         items = None
@@ -240,25 +234,24 @@ class PlaybookDocutizer(CLI):
                     mylookup = self._shared_loader_obj.lookup_loader.get(task.loop_with, loader=self._loader, templar=templar)
                     items = mylookup.run(terms=loop_terms, variables=task_vars, wantlist=True)
                 except AnsibleUndefinedVariable as e:
-                    display.warning('Processing %s caused an AnsibleUndefinedVariable error: %s'%(task, e))
+                    display.warning('Processing %s caused an AnsibleUndefinedVariable error: %s' % (task, e))
         elif task.loop:
             items = templar.template(task.loop)
         return items
 
-
     def _task_data_for_template(self, task):
-        result = {'name':task.name,
-                  'role':task._role,
-                  'has_loop':(task.loop or task.loop_with),
-                  'loop':task.loop,
-                  'loop_with':task.loop_with,
-                  'action':task.action,
-                  'args':task.args,
-                  'when':task.when,
-                  'notify':task.notify,
-                  'register':task.register,
-                  'validate':str(task.validate),
-                  'ds':task.get_ds()}
+        result = {'name': task.name,
+                  'role': task._role,
+                  'has_loop': (task.loop or task.loop_with),
+                  'loop': task.loop,
+                  'loop_with': task.loop_with,
+                  'action': task.action,
+                  'args': task.args,
+                  'when': task.when,
+                  'notify': task.notify,
+                  'register': task.register,
+                  'validate': str(task.validate),
+                  'ds': task.get_ds()}
         return result
 
 
@@ -274,6 +267,9 @@ if __name__ == "__main__":
     except AnsibleParserError as e:
         display.error(to_text(e), wrap_text=False)
         exit_code = 4
+    except AnsibleError as e:
+        display.error(to_text(e), wrap_text=False)
+        exit_code = 7
     except TemplateError as e:
         display.error(to_text(e), wrap_text=False)
         exit_code = 6

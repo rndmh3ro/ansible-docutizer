@@ -1,0 +1,14 @@
+**Packages**
+
+The following packages need to be {{ task.args.state|default('present') }}.
+
+- {{ task.args.name }}
+
+{% if task.has_loop %}
+After applying the loop:
+
+{% for t in task.loop_eval %}
+- {{ t.args.name }}
+{% endfor %}
+{% endif %}
+

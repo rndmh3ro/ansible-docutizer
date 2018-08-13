@@ -1,0 +1,12 @@
+| Service | State | Enabled |
+| ======= | ===== | ======= |
+{% for t in task.loop_eval %}
+| `{{ t.args.name}}` | {{ t.args.state|default(omit) }} | {{ t.args.enabled|default(omit) }} |
+{% else %}
+| `{{ task.args.name}}` | {{ task.args.state|default(omit) }} | {{ task.args.enabled|default(omit) }} |
+{% endfor %}
+
+{% if task.args.use %}
+> **NOTE:** this module will use the {{ task.args.use }} command.
+{% endif %}
+

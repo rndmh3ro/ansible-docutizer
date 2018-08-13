@@ -116,9 +116,12 @@ class PlaybookDocutizer(CLI):
                         self._loader.set_basedir(pb_dir)
 
                     hosts = CLI.get_host_list(self._inventory, self.options.subset)
+                    # TODO(iwalker): do we really need a host? can this just run with localhost?
                     if len(hosts) == 0:
                         raise AnsibleError('No hosts were specified')
 
+                    # NOTE(iwalker): can loop through all hosts and evaluate the tasks, but since we are not doing any
+                    # conditional evaluation, we'll just pick the first host and use that.
                     host = hosts[0]
                     display.v('Processing against host: %s' % (host.get_name()))
 

@@ -11,7 +11,7 @@ Update the following file `{{ task.args.dest|default(task.args.path) }}`:
 | ------                   | -------                |
 | `{{ task.args.regexp }}` | `{{ task.args.line }}` |
 
-{% if task.loop_eval and task.loop_eval|length > 0 %}
+{% if task.loop_eval  %}
 After applying the loop variable:
 
 | Regexp                   | Replace                |
